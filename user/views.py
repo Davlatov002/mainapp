@@ -284,12 +284,9 @@ def activate_referral_link(request, pk):
         tran = Tranzaktionserialazer(data=data)
         if tran.is_valid():
             tran.save()
-        frend.balance_usdt += 0.05
-        frend.balance_netbo += 0.1
+        frend.number_people += 1
         frend.save()
         taim = date.today()
-        fr_username = frend.username
-        data = {"username":fr_username, "balance_usdt":0.05,'balance_netbo':0.1, "created_at":taim}
         tran = Tranzaktionserialazer(data=data)
         if tran.is_valid():
             tran.save()
@@ -364,3 +361,4 @@ def balance_history(request, pk):
         return Response({'message': 1, 'daily': dey_sum,"weekly":week_sum, 'monthly': moon_sum}, status=status.HTTP_200_OK)
     else:
         return Response({'message': -1}, status=status.HTTP_400_BAD_REQUEST)
+False

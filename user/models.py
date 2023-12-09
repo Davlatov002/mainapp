@@ -16,6 +16,7 @@ class Profile(models.Model):
     surname = models.CharField(max_length=250, blank=True, null=True)
     profile_image = models.TextField(null=True, blank=True)
     referal_link = models.CharField(max_length=8, default=generate_random_string, unique=True, editable=False)
+    number_people = models.IntegerField(default=0)
     balance_usdt = models.FloatField(default=0.0)
     balance_netbo = models.FloatField(default=0.0)
     wallet_id_usdt = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -32,7 +33,6 @@ class Transaction(models.Model):
     username = models.CharField(max_length=200, null=True, blank=True)
     balance_usdt = models.FloatField(default=0.0)
     balance_netbo = models.FloatField(default=0.0)
-    balance_btc = models.FloatField(default=0.0)
     created_at = models.DateField(default=None, blank=True, null=True)
 
     def __str__(self) -> str:
