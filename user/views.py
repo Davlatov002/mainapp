@@ -3,10 +3,11 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Profile, Transaction
 from drf_yasg.utils import swagger_auto_schema
-from .serialazers import ProfileSerializer, ProfilesingupSerialazer, ProfileLoginserialazer, UpdateProfileSerializer, ProfileRefeleshSerialazer,VerificationCodeserialazer ,GMProfileserialazer, UpdatePasswordSerializer, Tranzaktionserialazer, UpdateEmPsSerializer
-import time
+from .serialazers import ProfileSerializer, ProfilesingupSerialazer, ProfileLoginserialazer, UpdateProfileSerializer, ProfileRefeleshSerialazer,VerificationCodeserialazer ,GMProfileserialazer, UpdatePasswordSerializer, Tranzaktionserialazer, UpdateEmPsSerializer,UserTranzaktionserialazer
+import time, calendar
 import random
-from datetime import date, timedelta
+from datetime import datetime, timedelta
+from django.db.models import Sum, F
 
 
 # gmail######
@@ -275,25 +276,28 @@ def activate_referral_link(request, pk):
         except:
             return Response({'message': -2}, status=status.HTTP_400_BAD_REQUEST)
         profile = Profile.objects.get(id=pk)
-        profile.balance_usdt += 0.05
-        profile.balance_netbo += 0.1
-        pr_username = profile.username
+        profile.balance_usdt += 0.1
+        profile.balance_netbo += 0.2
+        pr_username = str(profile.id)
         profile.save()
-        taim = date.today()
-        data = {"username":pr_username, "balance_usdt":0.05,'balance_netbo':0.1,"created_at":taim}
+        taim = int(time.time())
+        data = {"profile_id":pr_username, "balance_usdt":0.1,'balance_netbo':0.2,"created_at":taim}
         tran = Tranzaktionserialazer(data=data)
         if tran.is_valid():
             tran.save()
         frend.number_people += 1
+        frend.balance_usdt += 0.05
+        frend.balance_netbo += 0.1
+        fr_username = str(frend.id)
+        data = {"profile_id":fr_username, "balance_usdt":0.05,'balance_netbo':0.1,"created_at":taim}
         frend.save()
-        taim = date.today()
         tran = Tranzaktionserialazer(data=data)
         if tran.is_valid():
             tran.save()
         return Response({'message': 1}, status=status.HTTP_200_OK)
     else:
         return Response({'message': -1},status=status.HTTP_400_BAD_REQUEST)
-    
+
 @swagger_auto_schema(method='PATCH', operation_description="Ball berladigan profile ID sini kirting")
 @api_view(['PATCH'])
 def ad_reward(request, pk):
@@ -301,17 +305,36 @@ def ad_reward(request, pk):
         try:
             profile = Profile.objects.get(id=pk)
         except:
-            return Response({'message': -2},status=status.HTTP_400_BAD_REQUEST)    
-        profile.balance_usdt += 0.015
-        profile.balance_netbo += 0.1
-        profile.save()
-        username = profile.username
-        taim = date.today()
-        data = {"username":username, "balance_usdt":0.015,'balance_netbo':0.1, "created_at":taim}
-        tran = Tranzaktionserialazer(data=data)
-        if tran.is_valid():
-            tran.save()
-        return Response({'message': 1, "transaction":tran.data},status=status.HTTP_200_OK)
+            return Response({'message': -1},status=status.HTTP_400_BAD_REQUEST)  
+        taim2 = profile.last_mining
+        taim1 = int(time.time())
+        if taim2 + 14400 <= taim1 :
+            if profile.number_people < 50: 
+                nom = 5 + (0.1 * profile.number_people) 
+                profile.balance_netbo += nom
+                profile.save()
+                username_id = str(profile.id)
+                data = {"profile_id":username_id, 'balance_netbo':nom, "created_at":taim1}
+            elif profile.number_people < 100: 
+                nom = 5 + (0.2 * profile.number_people) 
+                profile.balance_netbo += nom
+                profile.save()
+                username_id = str(profile.id)
+                data = {"profile_id":username_id, 'balance_netbo':nom, "created_at":taim1}
+            else: 
+                nom = 5 + (0.3 * profile.number_people) 
+                profile.balance_netbo += nom
+                profile.save()
+                username_id =str(profile.id)
+                data = {"profile_id":username_id, 'balance_netbo':nom, "created_at":taim1}
+            tran = Tranzaktionserialazer(data=data)
+            profile.last_mining = int(time.time())
+            profile.save()
+            if tran.is_valid():
+                tran.save()
+            return Response({'message': 1, "transaction":tran.data},status=status.HTTP_200_OK)
+        else:
+            return Response({'message': -2},status=status.HTTP_400_BAD_REQUEST)
     else:
         return Response({'message': -1},status=status.HTTP_400_BAD_REQUEST)
 
@@ -325,40 +348,65 @@ def get_tr(request):
     else:
         return Response({'message': -1},status=status.HTTP_400_BAD_REQUEST)
 
-@swagger_auto_schema(methods='GET')
+
 @api_view(['GET'])
 def balance_history(request, pk):
     if request.method == 'GET':
-        dey_sum = 0
-        moon_sum = [0] * date.today().day 
-        week_sum = [0] * 7 
-        profile = Profile.objects.get(id=pk)
-        username = profile.username
+        current_timestamp = int(time.time())
+        current_date = datetime.utcfromtimestamp(current_timestamp).date()
 
-        all_transactions = Transaction.objects.filter(username=username)
+        dey_sum = 0
+        days_in_month = calendar.monthrange(current_date.year, current_date.month)[1]
+        moon_sum = [0] * days_in_month
+        week_sum = [0] * 7
+        profile = Profile.objects.get(id=pk)
+        username_id = profile.id
+
+        all_transactions = Transaction.objects.filter(profile_id=username_id)
 
         # Kunlik tranzaksiyalar
-        for transaction in all_transactions:
-            if transaction.created_at == date.today():
-                dey_sum += transaction.balance_usdt
+        daily_transactions = all_transactions.filter(
+            created_at__gte=current_timestamp - 86400,
+            created_at__lt=current_timestamp
+        )
+        dey_sum = daily_transactions.aggregate(Sum('balance_netbo'))['balance_netbo__sum'] or 0
 
-        # haftalik tranzaksiyalar
-        today = date.today()
-        start_of_week = today - timedelta(days=today.weekday())  # Haftaning boshlanishi
-
-        weekly_transactions = all_transactions.filter(created_at__gte=start_of_week)
-
+        # Haftalik tranzaksiyalar
+        weekly_transactions = all_transactions.filter(
+            created_at__gte=current_timestamp - (86400 * 7),
+            created_at__lt=current_timestamp
+        )
+        week_sum = [0] * 7  # Reset week_sum
         for transaction in weekly_transactions:
-            week_sum[(transaction.created_at - start_of_week).days] += transaction.balance_usdt
+            transaction_date = datetime.utcfromtimestamp(transaction.created_at).date()
+            day_of_week = transaction_date.weekday()
+            week_sum[day_of_week] += transaction.balance_netbo
 
         # Oylik tranzaksiyalar
-        first_day_of_month = date.today().replace(day=1)
-        oylik_transactions = all_transactions.filter(created_at__gte=first_day_of_month)
-
+        oylik_transactions = all_transactions.filter(
+            created_at__gte=current_timestamp - (86400 * days_in_month),
+            created_at__lt=current_timestamp
+        )
+        moon_sum = [0] * days_in_month  # Reset moon_sum
         for transaction in oylik_transactions:
-            moon_sum[transaction.created_at.day - 1] += transaction.balance_usdt
+            transaction_date = datetime.utcfromtimestamp(transaction.created_at).date()
+            day_of_month = transaction_date.day - 1
+            moon_sum[day_of_month] += transaction.balance_netbo
 
-        return Response({'message': 1, 'daily': dey_sum,"weekly":week_sum, 'monthly': moon_sum}, status=status.HTTP_200_OK)
+        return Response({'message': 1, 'daily': dey_sum, "weekly": week_sum, 'monthly': moon_sum}, status=status.HTTP_200_OK)
     else:
         return Response({'message': -1}, status=status.HTTP_400_BAD_REQUEST)
-False
+
+@swagger_auto_schema(methods='GET')
+@api_view(['GET'])
+def get_tr_us(request, pk):
+    if request.method == 'GET':
+        try:
+            tr = Transaction.objects.filter(profile_id=pk)
+        except:
+            return Response({'message': -1},status=status.HTTP_400_BAD_REQUEST)
+        serialazer = UserTranzaktionserialazer(tr, many=True)
+        return Response({'message': 1,"profile":serialazer.data}, status=status.HTTP_200_OK)
+    else:
+        return Response({'message': -1},status=status.HTTP_400_BAD_REQUEST)
+    

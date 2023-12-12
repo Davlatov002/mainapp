@@ -21,5 +21,6 @@ urlpatterns = [
     path('verify-email/<str:pk>/', views.verify_email, name='verify-email'),
     path('balance-history/<str:pk>/', views.balance_history, name='balance-history'),
     path('get-TR/', views.get_tr, name='get-TR'),
+    path('profile-history/<str:pk>/', views.get_tr_us, name='profile-history'),
 
 ]
