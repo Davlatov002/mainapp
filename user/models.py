@@ -24,10 +24,12 @@ class Profile(models.Model):
     last_mining = models.IntegerField(default=0, null=True, blank=True)
     wallet_id_usdt = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     wallet_id_netbo = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    is_identified = models.BooleanField(default=False)
+    is_identified = models.BooleanField(default=False,null=True, blank=True)
     is_verified = models.IntegerField(null=True, blank=True)
     is_archived = models.IntegerField(null=True, blank=True)
     mac_address = models.CharField(max_length = 200, blank=True, null=True)
+    # new
+    friend_referal_link = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self) -> str:
         return self.username
@@ -38,5 +40,25 @@ class Transaction(models.Model):
     balance_netbo = models.FloatField(default=0.0)
     created_at = models.IntegerField()
 
+class Identified(models.Model):
+    user_id = models.CharField(max_length=252)
+    fullname = models.CharField(max_length=255)
+    birthday = models.CharField(max_length=250)
+    serial_document = models.CharField(max_length=255)
+    id_image = models.TextField()
+    address_image = models.TextField()
+    selfie_image = models.TextField()
+    is_identified = models.BooleanField(null=True, blank=True)
+
+class MoneyOut(models.Model):
+    profile_id = models.CharField(max_length=200, null=True, blank=True)
+    wallet_addres = models.CharField(max_length=200, null=True, blank=True)
+    balance_netbo = models.FloatField(default=0.0)
+    is_identified = models.BooleanField(null=True, blank=True)
+    created_at = models.IntegerField()
+
     def __str__(self) -> str:
-        return self.username
+        return self.profile_id
+
+  
+

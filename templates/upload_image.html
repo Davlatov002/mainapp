@@ -1,0 +1,43 @@
+<!-- upload_image.html -->
+{% load static %}
+<head>
+    <link rel="stylesheet" type="text/css" href="{% static 'styles.css' %}">
+</head>
+
+<body>
+    <div class="image-upload-container">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.fullname.label_tag }}
+            {{ form.fullname }}
+            <br>
+            <hr>
+            {{ form.birthday.label_tag }}
+            {{ form.birthday }}
+            <br>
+            <hr>
+            {{ form.serial_Document.label_tag }}
+            {{ form.serial_Document }}
+            <br>
+            <hr>
+            <!-- Qolgan fildlarni ham shu tartibda qo'shing -->
+            {{ form.iD_image.label_tag }}
+            {{ form.iD_image }}
+            <br>
+            <hr>
+            {{ form.address_image.label_tag }}
+            {{ form.address_image }}
+            <hr>
+            <p>Selfie holding passport and paper with NetBoxO written on it.</p>
+            {{ form.selfie_image.label_tag }}
+            {{ form.selfie_image }}
+            <br>
+            <hr>
+            <button type="submit">Send</button>
+        </form>
+    
+        {% if form.is_bound and form.is_valid %}
+            <p>Thank you! Your information has been sent successfully.</p>
+        {% endif %}
+    </div>
+</body>

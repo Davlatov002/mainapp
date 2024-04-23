@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Profile, Transaction
+from .models import Profile, Transaction, Identified, MoneyOut
 
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -64,3 +64,22 @@ class UpdateEmPsSerializer(serializers.ModelSerializer):
 
 class GMProfileserialazer(serializers.Serializer):
     email = serializers.EmailField()
+
+class IdentifiedSerialazer(serializers.ModelSerializer):
+    class Meta:
+        model = Identified
+        fields = '__all__'
+
+class CreatMoneyOutserialazer(serializers.Serializer):
+    wallet_addres = serializers.CharField()
+    balance_netbo = serializers.FloatField()
+
+class MoneyOutserialazer(serializers.ModelSerializer):
+    class Meta:
+        model = MoneyOut
+        fields = '__all__'
+
+class IdentifiedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Identified
+        fields = fields = ["fullname", "birthday", "serial_document", "id_image", "address_image", "selfie_image"]

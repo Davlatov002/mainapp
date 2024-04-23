@@ -1,14 +1,15 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Profile, Transaction
+from .models import Profile, Transaction, Identified, MoneyOut
 from drf_yasg.utils import swagger_auto_schema
-from .serialazers import ProfileSerializer, ProfilesingupSerialazer, ProfileLoginserialazer, UpdateProfileSerializer, ProfileRefeleshSerialazer,VerificationCodeserialazer ,GMProfileserialazer, UpdatePasswordSerializer, Tranzaktionserialazer, UpdateEmPsSerializer,UserTranzaktionserialazer
+from .serialazers import ProfileSerializer, ProfilesingupSerialazer, ProfileLoginserialazer, UpdateProfileSerializer, ProfileRefeleshSerialazer,VerificationCodeserialazer ,GMProfileserialazer, UpdatePasswordSerializer, Tranzaktionserialazer, UpdateEmPsSerializer,UserTranzaktionserialazer, MoneyOutserialazer, CreatMoneyOutserialazer, IdentifiedSerializer
 import time, calendar
-import random
+import random, string
 from datetime import datetime, timedelta
 from django.db.models import Sum, F
-
+import json
+from django.shortcuts import render
 
 # gmail######
 import smtplib
@@ -18,10 +19,14 @@ from email.mime.multipart import MIMEMultipart
 globals
 code_lis = {}
 
+def generate_random_string(length=10):
+    letters_and_digits = string.ascii_letters + string.digits
+    return ''.join(random.choice(letters_and_digits) for _ in range(length))
+
 def send_email(subject, body, to_email):
     # Gmail pochtangiz va parolingizni kiriting
-    gmail_user = 'pythonN15Django@gmail.com'
-    gmail_password = 'hqmwjojhkgufgjsj'
+    gmail_user = 'netboxollc@gmail.com'
+    gmail_password = "rfqdwyoszfrfoczl"
 
     # Xabar tayyorlash
     message = MIMEMultipart()
@@ -30,7 +35,7 @@ def send_email(subject, body, to_email):
     message['Subject'] = subject
 
     # Xabarning matnini qo'shish
-    message.attach(MIMEText(body, 'plain'))
+    message.attach(MIMEText(body, 'html'))
 
     # SMTP serveriga ulanish
     with smtplib.SMTP('smtp.gmail.com', 587) as server:
@@ -41,23 +46,58 @@ def send_email(subject, body, to_email):
         server.sendmail(gmail_user, to_email, message.as_string())
 #####
 
-@swagger_auto_schema(method='PATCH', request_body=GMProfileserialazer, operation_description="Tiklamoqchi bo'lgan profilning ID sini kirting!")
+
+@swagger_auto_schema(method='PATCH', operation_description="Tiklamoqchi bo'lgan profilning ID sini kirting!")
 @api_view(['PATCH'])
-def send_otp(request):
+def send_otp(request, email):
     if request.method == 'PATCH':
         try:
-            email = request.data.get("email")
+            # Agar email bo'yicha profili topish mumkin bo'lsa
             profile = Profile.objects.get(email=email)
-        except:
-            return Response({'error': -2 }, status=status.HTTP_400_BAD_REQUEST)
-        six_digit_number = str(random.randint(100000, 999999))
+        except Profile.DoesNotExist:
+            try:
+                # Agar email bo'yicha topilmagan bo'lsa, username bo'yicha izlash
+                profile = Profile.objects.get(username=email)
+            except Profile.DoesNotExist:
+                # Agar username bo'yicha ham topilmagan bo'lsa, xato qaytarish
+                return Response({'message': -2 }, status=status.HTTP_400_BAD_REQUEST)
+        six_digit_number = generate_random_string()
         gmail = str(profile.email)
-        send_email("Verification code",f'{  six_digit_number  }', gmail)
-        code_lis[six_digit_number]=gmail
+        massag =f"""
+        <html>
+        <head>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                }}
+                .password-message {{
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    background-color: #f4f4f4;
+                    border-radius: 10px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="password-message">
+                <p>Password Recovery - MinerUP</p>
+                <p>Your new login password: <strong>{six_digit_number}</strong></p>
+                <p>After that, you can only log in with this password.</p>
+                <p>If this is not you, please contact us immediately.</p>
+            </div>
+        </body>
+        </html>
+    """
+        send_email("Password",massag, gmail)
+        profile.password = six_digit_number
+        profile.save()
         return Response({'message': 1 },status=status.HTTP_200_OK)
     else:
         return Response({'message': -1 },status=status.HTTP_400_BAD_REQUEST)
-        
+
 @swagger_auto_schema(method='PATCH', request_body=VerificationCodeserialazer, operation_description="Tiklamoqchi bo'lgan profilning ID sini kirting!")
 @api_view(['PATCH'])
 def confirmation_otp(request):
@@ -71,7 +111,7 @@ def confirmation_otp(request):
 
     else:
         return Response({'message': -1 },status=status.HTTP_400_BAD_REQUEST)
-    
+
 @swagger_auto_schema(method='PATCH', request_body=UpdatePasswordSerializer, operation_description="Parolni o'zgartirish uchun so'rov")
 @api_view(['PATCH'])
 def update_password(request, email):
@@ -87,7 +127,7 @@ def update_password(request, email):
         return Response({'message': 1 }, status=status.HTTP_200_OK)
     else:
         return Response({'message': -1}, status=status.HTTP_400_BAD_REQUEST)
-    
+
 @swagger_auto_schema(method='PATCH', request_body=UpdateProfileSerializer, operation_description="Yangilamaoqchi bo'lgan Profilening ID sini kirting")
 @api_view(['PATCH'])
 def update_profile(request, pk):
@@ -112,7 +152,7 @@ def update_profile(request, pk):
 
             # Serialize the updated profile for the response
             serializer = ProfileSerializer(profile)
-            
+
             return Response({'message': 1, "profile": serializer.data}, status=status.HTTP_200_OK)
         else:
             return Response({'message': -2}, status=status.HTTP_400_BAD_REQUEST)
@@ -143,7 +183,7 @@ def update_email_password(request, pk):
 
             # Serialize the updated profile for the response
             serializer = ProfileSerializer(profile)
-            
+
             return Response({'message': 1, "profile": serializer.data}, status=status.HTTP_200_OK)
         else:
             return Response({'message': -2}, status=status.HTTP_400_BAD_REQUEST)
@@ -185,7 +225,7 @@ def signup(request):
         usernames = [profile.username for profile in profiles]
         username = request.data.get('username')
         email = request.data.get('email')
-        mac_adres = request.data.get('mac_address', None) 
+        mac_adres = request.data.get('mac_address', None)
         adress = [profile.mac_address for profile in profiles if profile.mac_address is not None and profile.mac_address != "null" and profile.mac_address != ""]
         gm = [profile.email for profile in profiles]
         serializer = ProfileSerializer(data=request.data)
@@ -222,7 +262,7 @@ def get_profile_id(request, pk):
         return Response({'message': 1,"profile":serializer.data}, status=status.HTTP_200_OK)
     else:
         return Response({'message': -1},status=status.HTTP_400_BAD_REQUEST)
-    
+
 @swagger_auto_schema(methods='GET')
 @api_view(['GET'])
 def get_profile_username(request, username):
@@ -232,7 +272,7 @@ def get_profile_username(request, username):
         return Response({'message': 1,"profile":serializer.data}, status=status.HTTP_200_OK)
     else:
         return Response({'message': -1},status=status.HTTP_400_BAD_REQUEST)
-    
+
 @swagger_auto_schema(method='POST', request_body=ProfileLoginserialazer, operation_description="Malumotlarni kirting")
 @api_view(['POST'])
 def login(request):
@@ -252,7 +292,7 @@ def login(request):
         return Response({'message': -2}, status=status.HTTP_400_BAD_REQUEST)
     else:
         return Response({'message': -1}, status=status.HTTP_400_BAD_REQUEST)
-    
+
 @swagger_auto_schema(method='DELETE', operation_description="O'chirmoqchi bo'lgan Profileni ID sini kirting")
 @api_view(['DELETE'])
 def delete_profile(request, pk):
@@ -265,7 +305,7 @@ def delete_profile(request, pk):
         return Response({'message':1},status=status.HTTP_200_OK)
     else:
         return Response({'message': -1 },status=status.HTTP_400_BAD_REQUEST)
-    
+
 @swagger_auto_schema(method='PATCH', request_body=ProfileRefeleshSerialazer, operation_description="Referal_link")
 @api_view(['PATCH'])
 def activate_referral_link(request, pk):
@@ -276,25 +316,13 @@ def activate_referral_link(request, pk):
         except:
             return Response({'message': -2}, status=status.HTTP_400_BAD_REQUEST)
         profile = Profile.objects.get(id=pk)
-        profile.balance_usdt += 0.1
-        profile.balance_netbo += 0.2
-        pr_username = str(profile.id)
-        profile.save()
-        taim = int(time.time())
-        data = {"profile_id":pr_username, "balance_usdt":0.1,'balance_netbo':0.2,"created_at":taim}
-        tran = Tranzaktionserialazer(data=data)
-        if tran.is_valid():
-            tran.save()
-        frend.number_people += 1
-        frend.balance_usdt += 0.05
-        frend.balance_netbo += 0.1
-        fr_username = str(frend.id)
-        data = {"profile_id":fr_username, "balance_usdt":0.05,'balance_netbo':0.1,"created_at":taim}
-        frend.save()
-        tran = Tranzaktionserialazer(data=data)
-        if tran.is_valid():
-            tran.save()
-        return Response({'message': 1}, status=status.HTTP_200_OK)
+        if frend.is_identified == True:
+            link = frend.referal_link
+            profile.friend_referal_link = link
+            profile.save()
+            return Response({'message': 1}, status=status.HTTP_200_OK)
+        else:
+            return Response({'message': -3}, status=status.HTTP_400_BAD_REQUEST)
     else:
         return Response({'message': -1},status=status.HTTP_400_BAD_REQUEST)
 
@@ -305,24 +333,24 @@ def ad_reward(request, pk):
         try:
             profile = Profile.objects.get(id=pk)
         except:
-            return Response({'message': -1},status=status.HTTP_400_BAD_REQUEST)  
+            return Response({'message': -1},status=status.HTTP_400_BAD_REQUEST)
         taim2 = profile.last_mining
         taim1 = int(time.time())
         if taim2 + 14400 <= taim1 :
-            if profile.number_people < 50: 
-                nom = 5 + (0.1 * profile.number_people) 
+            if profile.number_people < 50:
+                nom = 1 + (0.02 * profile.number_people)
                 profile.balance_netbo += nom
                 profile.save()
                 username_id = str(profile.id)
                 data = {"profile_id":username_id, 'balance_netbo':nom, "created_at":taim1}
-            elif profile.number_people < 100: 
-                nom = 5 + (0.2 * profile.number_people) 
+            elif profile.number_people < 100:
+                nom = 1 + (0.05 * profile.number_people)
                 profile.balance_netbo += nom
                 profile.save()
                 username_id = str(profile.id)
                 data = {"profile_id":username_id, 'balance_netbo':nom, "created_at":taim1}
-            else: 
-                nom = 5 + (0.3 * profile.number_people) 
+            else:
+                nom = 1 + (0.08 * profile.number_people)
                 profile.balance_netbo += nom
                 profile.save()
                 username_id =str(profile.id)
@@ -409,4 +437,107 @@ def get_tr_us(request, pk):
         return Response({'message': 1,"profile":serialazer.data}, status=status.HTTP_200_OK)
     else:
         return Response({'message': -1},status=status.HTTP_400_BAD_REQUEST)
-    
+
+@swagger_auto_schema(methods='GET')
+@api_view(['GET'])
+def get_max_usdt_profile(request):
+    if request.method == 'GET':
+        max_netbo_profile = None
+        max_netbo_balance = 0.0
+
+        profiles = Profile.objects.all()
+
+        for profile in profiles:
+            if profile.balance_netbo > max_netbo_balance:
+                max_netbo_profile = profile
+                max_netbo_balance = profile.balance_netbo
+        serializer = ProfileSerializer(max_netbo_profile)
+        if max_netbo_profile is not None:
+            return Response({'message': 1, 'profile_id': serializer.data}, status=status.HTTP_200_OK)
+        else:
+            return Response({'message': -2}, status=status.HTTP_200_OK)
+    else:
+        return Response({'message': -1}, status=status.HTTP_400_BAD_REQUEST)
+
+@swagger_auto_schema(method='POST', request_body=IdentifiedSerializer, operation_description="Malumotlarni kirting")
+@api_view(['POST'])
+def upload_image(request, pk):
+    if request.method == 'POST':
+        serializer = IdentifiedSerializer(data=request.data)
+        if serializer.is_valid():
+            profile = Profile.objects.get(id=pk)
+            profile.is_identified = None
+            profile.save()
+            serializer.save(user_id=pk)
+            return Response({'message': 1, 'data': serializer.data}, status=status.HTTP_200_OK)
+        return Response({'message': -1}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response({'message': -1}, status=status.HTTP_400_BAD_REQUEST)
+
+# def upload_image(request, pk):
+#     if request.method == 'POST':
+#         form = IdentifiedForm(request.POST, request.FILES)
+#         if form.is_valid():
+#             instance = form.save(commit=False)
+#             instance.user_id = pk
+#             instance.save()
+#     else:
+#         form = IdentifiedForm()
+
+#     return render(request, 'upload_image.html', {'form': form})
+
+@swagger_auto_schema(methods='GET')
+@api_view(['GET'])
+def get_identified_id(request, pk):
+    if request.method == 'GET':
+        profile = Identified.objects.get(id=pk)
+        serializer = IdentifiedSerializer(profile)
+        return Response({'message': 1,"Identified":serializer.data}, status=status.HTTP_200_OK)
+    else:
+        return Response({'message': -1},status=status.HTTP_400_BAD_REQUEST)
+
+@swagger_auto_schema(method='POST', request_body=CreatMoneyOutserialazer, operation_description="Malumotlarni kirting")
+@api_view(['POST'])
+def moneyout(request, pk):
+    if request.method == 'POST':
+        try:
+            profile = Profile.objects.get(id=pk)
+        except:
+            return Response({'message': -1},status=status.HTTP_400_BAD_REQUEST)
+        taim = int(time.time())
+        id = str(profile.id)
+        wallet_address = request.data.get('wallet_addres')
+        balance_netboo = request.data.get('balance_netbo')
+        data = {"profile_id":id, "wallet_addres":wallet_address, "balance_netbo":balance_netboo, "created_at":taim}
+        ser = MoneyOutserialazer(data=data)
+        if ser.is_valid():
+            ser.save()
+            profile.balance_netbo -= balance_netboo
+            profile.save()
+            return Response({'message': 1,"data":ser.data}, status=status.HTTP_200_OK)
+        else:
+            return Response({'message': "-1"}, status=status.HTTP_400_BAD_REQUEST)
+
+@swagger_auto_schema(methods='GET')
+@api_view(['GET'])
+def get_moneyout_id(request, pk):
+    if request.method == 'GET':
+        moneyouts = MoneyOut.objects.filter(profile_id=pk)
+        serializer = MoneyOutserialazer(moneyouts, many=True)
+        return Response({'message': 1, "data": serializer.data}, status=status.HTTP_200_OK)
+    else:
+        return Response({'message': -1}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@swagger_auto_schema(methods='GET')
+@api_view(['GET'])
+def add_new_field_to_profiles(request):
+    # 9000 ta profillarni olish
+    profiles = Profile.objects.all()
+
+    # Yangi maydonni har bir profile uchun to'ldirish
+    for profile in profiles:
+        profile.friend_referal_link = None# Sizning qiymatingizni qo'shing
+        profile.save()
+
+    return Response({'message': 1}, status=status.HTTP_200_OK)

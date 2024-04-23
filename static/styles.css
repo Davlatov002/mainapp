@@ -1,0 +1,12 @@
+.image-upload-container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 30px;
+    text-align: center;
+}
+
+.image-upload-container img {
+    max-width: 100%;
+    height: auto;
+    margin-top: 10px;
+}

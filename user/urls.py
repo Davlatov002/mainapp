@@ -1,5 +1,7 @@
 from django.urls import path
 from . import views
+from django.conf import settings
+from django.conf.urls.static import static
 
 
 urlpatterns = [
@@ -22,5 +24,14 @@ urlpatterns = [
     path('balance-history/<str:pk>/', views.balance_history, name='balance-history'),
     path('get-TR/', views.get_tr, name='get-TR'),
     path('profile-history/<str:pk>/', views.get_tr_us, name='profile-history'),
+    path('get-maxbalanspr/', views.get_max_usdt_profile, name='get-maxbalanspr'),
+    path('get-identified-id/<str:pk>/', views.get_identified_id, name='get-identified-id'),
+    path('creat-identified/<str:pk>/', views.upload_image, name='creat-identified'),
+    path("get-moneyout-id/<str:pk>/", views.get_moneyout_id, name='get-moneyout-id'),
+    path("moneyout/<str:pk>/", views.moneyout, name='moneyout'),
+    path("recovery-password/<str:email>/", views.send_otp, name='recovery-password'),
+
 
 ]
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
